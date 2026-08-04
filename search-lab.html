@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Lab — Interpolation vs Binary</title>
+<style>
+  :root{
+    --ink:#0d1117;
+    --panel:#12181f;
+    --panel-raised:#161d26;
+    --line: #223041;
+    --amber:#e8a33d;
+    --amber-dim:#8a6428;
+    --cyan:#4fd1c5;
+    --cyan-dim:#2a6a63;
+    --text:#dbe4ee;
+    --text-dim:#7c8ba1;
+    --danger:#e8636b;
+    --mono: 'JetBrains Mono','Consolas',monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 20% -10%, #17222f 0%, transparent 45%),
+      var(--ink);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    padding-bottom:60px;
+  }
+  header{
+    padding:48px 24px 28px;
+    max-width:980px;
+    margin:0 auto;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:var(--mono);
+    font-size:clamp(28px,4vw,42px);
+    margin:0 0 12px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  h1 span{color:var(--cyan);}
+  .lede{
+    color:var(--text-dim);
+    max-width:640px;
+    font-size:15px;
+  }
+  main{
+    max-width:980px;
+    margin:0 auto;
+    padding:36px 24px 0;
+    display:flex;
+    flex-direction:column;
+    gap:36px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:24px;
+  }
+  .panel-title{
+    font-family:var(--mono);
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--text-dim);
+    margin:0 0 18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .panel-title::before{
+    content:"";
+    width:8px;height:8px;
+    background:var(--amber);
+    display:inline-block;
+    border-radius:1px;
+  }
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:flex-end;
+    margin-bottom:20px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1;
+    min-width:180px;
+  }
+  .field label{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--text-dim);
+  }
+  input[type=text], input[type=number]{
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:14px;
+    padding:10px 12px;
+    border-radius:4px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  input:focus{border-color:var(--cyan);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+  button{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.03em;
+    padding:10px 18px;
+    border-radius:4px;
+    border:1px solid var(--line);
+    background:var(--panel-raised);
+    color:var(--text);
+    cursor:pointer;
+    transition:all .15s;
+  }
+  button:hover{border-color:var(--cyan);color:var(--cyan);}
+  button.primary{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#1a1204;
+    font-weight:700;
+  }
+  button.primary:hover{background:#f0ae4c;color:#1a1204;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .hint{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:4px;
+  }
+  .error{color:var(--danger);font-family:var(--mono);font-size:12px;margin-top:8px;min-height:16px;}
+
+  /* array visualizer */
+  .track{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    padding:20px 0 10px;
+    min-height:56px;
+  }
+  .cell{
+    font-family:var(--mono);
+    font-size:12px;
+    width:38px;
+    height:38px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--text-dim);
+    position:relative;
+    transition:background .2s, color .2s, border-color .2s, transform .2s;
+  }
+  .cell.low{border-color:var(--cyan);color:var(--cyan);}
+  .cell.high{border-color:var(--danger);color:var(--danger);}
+  .cell.probe{background:var(--amber);color:#1a1204;border-color:var(--amber);transform:scale(1.12);}
+  .cell.found{background:var(--cyan);color:#04211f;border-color:var(--cyan);}
+  .cell.eliminated{opacity:.25;}
+  .cell .tag{
+    position:absolute;
+    top:-18px;
+    font-size:9px;
+    letter-spacing:.05em;
+  }
+  .legend{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:8px;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+  .step-log{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--text-dim);
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:14px 16px;
+    max-height:180px;
+    overflow-y:auto;
+    margin-top:16px;
+  }
+  .step-log div{padding:2px 0;}
+  .step-log .win{color:var(--cyan);}
+  .step-log .lose{color:var(--danger);}
+
+  .result-strip{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:18px;
+  }
+  .stat{
+    flex:1;
+    min-width:140px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:14px 16px;
+  }
+  .stat .num{font-family:var(--mono);font-size:22px;color:var(--amber);}
+  .stat .num.cyan{color:var(--cyan);}
+  .stat .label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-top:4px;}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  th,td{
+    text-align:right;
+    padding:9px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  th:first-child,td:first-child{text-align:left;}
+  th{
+    color:var(--text-dim);
+    font-weight:500;
+    text-transform:uppercase;
+    font-size:10.5px;
+    letter-spacing:.06em;
+  }
+  td.win{color:var(--cyan);}
+  tbody tr:hover{background:var(--panel-raised);}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media (max-width:640px){.split{grid-template-columns:1fr;}}
+
+  footer{
+    max-width:980px;
+    margin:40px auto 0;
+    padding:20px 24px 0;
+    border-top:1px solid var(--line);
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">// search_lab.py — reimplemented as a live probe</p>
+  <h1>Interpolation <span>vs</span> Binary Search</h1>
+  <p class="lede">Watch how each algorithm narrows a sorted array to a target — then benchmark both across array sizes from 1,000 to 100,000 elements, right here in the browser.</p>
+</header>
+
+<main>
+
+  <!-- SECTION 1: Visual probe -->
+  <section class="panel">
+    <p class="panel-title">01 · Step-through visualizer</p>
+
+    <div class="controls">
+      <div class="field">
+        <label for="arrInput">Sorted array (comma-separated)</label>
+        <input type="text" id="arrInput" value="2,5,10,15,23,35,48,60,75,90,105,120">
+      </div>
+      <div class="field" style="flex:0 0 140px;">
+        <label for="targetInput">Target</label>
+        <input type="number" id="targetInput" value="35">
+      </div>
+      <div class="btn-row">
+        <button id="randomizeBtn">Randomize</button>
+      </div>
+    </div>
+    <div class="error" id="visError"></div>
+
+    <div class="split">
+      <div>
+        <p class="panel-title" style="margin-bottom:6px;">Interpolation search</p>
+        <div class="track" id="isTrack"></div>
+        <div class="step-log" id="isLog"></div>
+      </div>
+      <div>
+        <p class="panel-title" style="margin-bottom:6px;">Binary search</p>
+        <div class="track" id="bsTrack"></div>
+        <div class="step-log" id="bsLog"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--cyan)"></span>low</span>
+      <span><span class="swatch" style="background:var(--danger)"></span>high</span>
+      <span><span class="swatch" style="background:var(--amber)"></span>probe</span>
+      <span><span class="swatch" style="background:var(--cyan);opacity:.6"></span>found</span>
+    </div>
+
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="primary" id="runVisBtn">Run step-through</button>
+      <button id="playBtn" disabled>▶ Auto-play</button>
+    </div>
+
+    <div class="result-strip" id="visResult"></div>
+  </section>
+
+  <!-- SECTION 2: Benchmark -->
+  <section class="panel">
+    <p class="panel-title">02 · Performance benchmark</p>
+    <p class="hint" style="margin-bottom:16px;">Generates a random sorted array at each size, searches for a present target 50 times, and averages the timing — mirroring the original Python <code>performance_analysis()</code> routine.</p>
+
+    <div class="controls">
+      <div class="field">
+        <label for="sizesInput">Array sizes to test</label>
+        <input type="text" id="sizesInput" value="1000, 5000, 10000, 50000, 100000">
+      </div>
+      <div class="btn-row">
+        <button class="primary" id="runBenchBtn">Run benchmark</button>
+      </div>
+    </div>
+    <div class="error" id="benchError"></div>
+    <div id="benchProgress" class="hint"></div>
+
+    <table id="benchTable" style="margin-top:16px; display:none;">
+      <thead>
+        <tr>
+          <th>Size</th>
+          <th>IS time (ms)</th>
+          <th>BS time (ms)</th>
+          <th>IS comparisons</th>
+          <th>BS comparisons</th>
+          <th>Faster</th>
+        </tr>
+      </thead>
+      <tbody id="benchBody"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  Interpolation search runs in O(log log n) on uniformly distributed data but degrades to O(n) worst case. Binary search holds steady at O(log n) regardless of distribution.
+</footer>
+
+<script>
+// ---------- Core algorithms (instrumented for step recording) ----------
+function interpolationSearchSteps(arr, target){
+  const steps = [];
+  let low = 0, high = arr.length - 1;
+  while(low <= high && arr[low] <= target && target <= arr[high]){
+    if(low === high){
+      steps.push({low, high, probe: low, note: arr[low] === target ? `arr[${low}] == target → found` : `arr[${low}] != target → not found`});
+      return { index: arr[low] === target ? low : -1, steps };
+    }
+    const pos = low + Math.floor(((target - arr[low]) * (high - low)) / (arr[high] - arr[low]));
+    steps.push({low, high, probe: pos, note: `probe=${pos} → arr[${pos}]=${arr[pos]}`});
+    if(arr[pos] === target){
+      return { index: pos, steps };
+    } else if(arr[pos] < target){
+      low = pos + 1;
+    } else {
+      high = pos - 1;
+    }
+  }
+  return { index: -1, steps };
+}
+
+function binarySearchSteps(arr, target){
+  const steps = [];
+  let low = 0, high = arr.length - 1;
+  while(low <= high){
+    const mid = Math.floor((low + high) / 2);
+    steps.push({low, high, probe: mid, note: `probe=${mid} → arr[${mid}]=${arr[mid]}`});
+    if(arr[mid] === target){
+      return { index: mid, steps };
+    } else if(arr[mid] < target){
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return { index: -1, steps };
+}
+
+// plain fast versions for benchmarking (no step recording overhead)
+function interpolationSearch(arr, target){
+  let low = 0, high = arr.length - 1, comparisons = 0;
+  while(low <= high && arr[low] <= target && target <= arr[high]){
+    comparisons++;
+    if(low === high){
+      return [arr[low] === target ? low : -1, comparisons];
+    }
+    const pos = low + Math.floor(((target - arr[low]) * (high - low)) / (arr[high] - arr[low]));
+    if(arr[pos] === target) return [pos, comparisons];
+    else if(arr[pos] < target) low = pos + 1;
+    else high = pos - 1;
+  }
+  return [-1, comparisons];
+}
+function binarySearch(arr, target){
+  let low = 0, high = arr.length - 1, comparisons = 0;
+  while(low <= high){
+    comparisons++;
+    const mid = Math.floor((low+high)/2);
+    if(arr[mid] === target) return [mid, comparisons];
+    else if(arr[mid] < target) low = mid + 1;
+    else high = mid - 1;
+  }
+  return [-1, comparisons];
+}
+
+// ---------- Visualizer rendering ----------
+function renderTrack(container, arr, frame){
+  container.innerHTML = '';
+  arr.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if(frame){
+      if(i < frame.low || i > frame.high) cell.classList.add('eliminated');
+      if(i === frame.low) cell.classList.add('low');
+      if(i === frame.high) cell.classList.add('high');
+      if(i === frame.probe) cell.classList.add('probe');
+    }
+    cell.textContent = val;
+    container.appendChild(cell);
+  });
+}
+
+function renderFinalTrack(container, arr, foundIndex){
+  container.innerHTML = '';
+  arr.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if(i === foundIndex) cell.classList.add('found');
+    cell.textContent = val;
+    container.appendChild(cell);
+  });
+}
+
+let currentPlayback = null;
+
+function parseArray(str){
+  const parts = str.split(',').map(s => s.trim()).filter(s => s.length);
+  const nums = parts.map(Number);
+  if(nums.some(n => Number.isNaN(n))) throw new Error('Array contains a non-numeric value.');
+  for(let i=1;i<nums.length;i++){
+    if(nums[i] < nums[i-1]) throw new Error('Array must be sorted in ascending order.');
+  }
+  if(nums.length === 0) throw new Error('Array is empty.');
+  return nums;
+}
+
+document.getElementById('randomizeBtn').addEventListener('click', () => {
+  const size = 12 + Math.floor(Math.random()*6);
+  let arr = [];
+  let val = Math.floor(Math.random()*10);
+  for(let i=0;i<size;i++){
+    val += 1 + Math.floor(Math.random()*12);
+    arr.push(val);
+  }
+  document.getElementById('arrInput').value = arr.join(',');
+  document.getElementById('targetInput').value = arr[Math.floor(Math.random()*arr.length)];
+});
+
+document.getElementById('runVisBtn').addEventListener('click', () => {
+  runVisualization();
+});
+
+function runVisualization(){
+  const errEl = document.getElementById('visError');
+  errEl.textContent = '';
+  const isTrack = document.getElementById('isTrack');
+  const bsTrack = document.getElementById('bsTrack');
+  const isLog = document.getElementById('isLog');
+  const bsLog = document.getElementById('bsLog');
+  const resultStrip = document.getElementById('visResult');
+  resultStrip.innerHTML = '';
+  isLog.innerHTML = '';
+  bsLog.innerHTML = '';
+
+  let arr, target;
+  try{
+    arr = parseArray(document.getElementById('arrInput').value);
+    target = Number(document.getElementById('targetInput').value);
+    if(Number.isNaN(target)) throw new Error('Enter a valid numeric target.');
+  }catch(e){
+    errEl.textContent = e.message;
+    return;
+  }
+
+  const isResult = interpolationSearchSteps(arr, target);
+  const bsResult = binarySearchSteps(arr, target);
+
+  renderTrack(isTrack, arr, isResult.steps[0]);
+  renderTrack(bsTrack, arr, bsResult.steps[0]);
+
+  isResult.steps.forEach((s, i) => {
+    const line = document.createElement('div');
+    const isLast = i === isResult.steps.length - 1;
+    line.textContent = `step ${i+1}: ${s.note}`;
+    if(isLast) line.className = isResult.index !== -1 ? 'win' : 'lose';
+    isLog.appendChild(line);
+  });
+  bsResult.steps.forEach((s, i) => {
+    const line = document.createElement('div');
+    const isLast = i === bsResult.steps.length - 1;
+    line.textContent = `step ${i+1}: ${s.note}`;
+    if(isLast) line.className = isResult.index !== -1 ? 'win' : 'lose';
+    bsLog.appendChild(line);
+  });
+
+  if(isResult.index !== -1) renderFinalTrack(isTrack, arr, isResult.index);
+  if(bsResult.index !== -1) renderFinalTrack(bsTrack, arr, bsResult.index);
+
+  resultStrip.innerHTML = `
+    <div class="stat">
+      <div class="num ${isResult.index !== -1 ? 'cyan':''}">${isResult.steps.length}</div>
+      <div class="label">IS comparisons</div>
+    </div>
+    <div class="stat">
+      <div class="num ${bsResult.index !== -1 ? 'cyan':''}">${bsResult.steps.length}</div>
+      <div class="label">BS comparisons</div>
+    </div>
+    <div class="stat">
+      <div class="num">${isResult.index !== -1 ? isResult.index : '—'}</div>
+      <div class="label">Found index</div>
+    </div>
+  `;
+
+  currentPlayback = { arr, isSteps: isResult.steps, bsSteps: bsResult.steps, isFound: isResult.index, bsFound: bsResult.index };
+  document.getElementById('playBtn').disabled = false;
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  if(!currentPlayback) return;
+  const { arr, isSteps, bsSteps, isFound, bsFound } = currentPlayback;
+  const isTrack = document.getElementById('isTrack');
+  const bsTrack = document.getElementById('bsTrack');
+  const maxLen = Math.max(isSteps.length, bsSteps.length);
+  const playBtn = document.getElementById('playBtn');
+  playBtn.disabled = true;
+  let i = 0;
+  const interval = setInterval(() => {
+    if(i < isSteps.length) renderTrack(isTrack, arr, isSteps[i]);
+    if(i < bsSteps.length) renderTrack(bsTrack, arr, bsSteps[i]);
+    i++;
+    if(i >= maxLen){
+      clearInterval(interval);
+      if(isFound !== -1) renderFinalTrack(isTrack, arr, isFound);
+      if(bsFound !== -1) renderFinalTrack(bsTrack, arr, bsFound);
+      playBtn.disabled = false;
+    }
+  }, 650);
+});
+
+// ---------- Benchmark ----------
+function generateSortedUniqueArray(size){
+  const set = new Set();
+  const maxVal = size * 10;
+  while(set.size < size){
+    set.add(Math.floor(Math.random() * maxVal));
+  }
+  return Array.from(set).sort((a,b) => a-b);
+}
+
+async function runBenchmark(){
+  const errEl = document.getElementById('benchError');
+  errEl.textContent = '';
+  const progressEl = document.getElementById('benchProgress');
+  const table = document.getElementById('benchTable');
+  const body = document.getElementById('benchBody');
+  body.innerHTML = '';
+
+  let sizes;
+  try{
+    sizes = document.getElementById('sizesInput').value
+      .split(',').map(s => parseInt(s.trim(), 10));
+    if(sizes.some(n => Number.isNaN(n) || n <= 0)) throw new Error('Sizes must be positive integers.');
+    if(sizes.some(n => n > 300000)) throw new Error('Keep sizes at or below 300,000 for a responsive browser benchmark.');
+  }catch(e){
+    errEl.textContent = e.message;
+    return;
+  }
+
+  table.style.display = 'table';
+  const runBtn = document.getElementById('runBenchBtn');
+  runBtn.disabled = true;
+
+  for(const size of sizes){
+    progressEl.textContent = `Running size ${size}…`;
+    // yield to the browser so the UI updates before the heavy loop
+    await new Promise(r => setTimeout(r, 20));
+
+    const arr = generateSortedUniqueArray(size);
+    const target = arr[Math.floor(Math.random() * arr.length)];
+    const REPEATS = 50;
+
+    let compIs = 0, compBs = 0;
+    const t0 = performance.now();
+    for(let r=0;r<REPEATS;r++){
+      const [, c] = interpolationSearch(arr, target);
+      compIs = c;
+    }
+    const t1 = performance.now();
+    for(let r=0;r<REPEATS;r++){
+      const [, c] = binarySearch(arr, target);
+      compBs = c;
+    }
+    const t2 = performance.now();
+
+    const isTime = (t1 - t0) / REPEATS;
+    const bsTime = (t2 - t1) / REPEATS;
+
+    const row = document.createElement('tr');
+    const faster = isTime < bsTime ? 'Interpolation' : 'Binary';
+    row.innerHTML = `
+      <td>${size.toLocaleString()}</td>
+      <td class="${isTime < bsTime ? 'win':''}">${isTime.toFixed(4)}</td>
+      <td class="${bsTime < isTime ? 'win':''}">${bsTime.toFixed(4)}</td>
+      <td>${compIs}</td>
+      <td>${compBs}</td>
+      <td>${faster}</td>
+    `;
+    body.appendChild(row);
+  }
+
+  progressEl.textContent = `Done — ${sizes.length} size(s) tested.`;
+  runBtn.disabled = false;
+}
+
+document.getElementById('runBenchBtn').addEventListener('click', runBenchmark);
+
+// run once on load
+runVisualization();
+</script>
+
+</body>
+</html>
