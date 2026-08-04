@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Divide &amp; Conquer Min-Max — Visualizer</title>
+<style>
+  :root{
+    --honey: #E3A008;
+    --honey-dark: #B9770E;
+    --honey-light: #FFE7A6;
+    --glass-bg: rgba(255,255,255,0.35);
+    --glass-border: rgba(255,255,255,0.6);
+    --text-dark: #4a3a10;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #fffdf5 0%, #ffedc2 45%, #ffd782 100%);
+    color: var(--text-dark);
+    padding: 32px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  h1{
+    text-align:center;
+    font-weight:600;
+    font-size:28px;
+    margin-bottom:6px;
+    color:#8a5a05;
+    text-shadow:0 1px 0 rgba(255,255,255,0.6);
+  }
+  p.sub{text-align:center;color:#8a6d2f;margin-top:0;margin-bottom:28px;font-size:14px;}
+
+  .glass{
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    box-shadow: 0 8px 32px rgba(180,130,20,0.18), inset 0 1px 0 rgba(255,255,255,0.5);
+    margin-bottom: 24px;
+  }
+  .card{ padding: 20px; }
+  .card h2{
+    margin:0 0 14px;
+    font-size:16px;
+    font-weight:600;
+    color:#7a5202;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--honey);}
+
+  svg{width:100%;height:auto;display:block;}
+
+  .tree-node rect{
+    fill: rgba(255,255,255,0.55);
+    stroke: var(--honey-dark);
+    stroke-width: 1.5;
+    transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
+  }
+  .tree-node.current rect{
+    fill: var(--honey);
+    stroke: #8a5202;
+    filter: drop-shadow(0 0 8px rgba(227,160,8,0.75));
+  }
+  .tree-node.done rect{
+    fill: var(--honey-light);
+  }
+  .tree-node .range{ font-size:12px; font-weight:600; fill:#5c3f05; text-anchor:middle; }
+  .tree-node .mm{ font-size:11px; fill:#8a6d2f; text-anchor:middle; }
+  .tree-edge{ stroke: rgba(138,90,2,0.4); stroke-width: 1.5; }
+
+  .stat-row{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px;}
+  .stat-box{
+    flex:1; min-width:150px;
+    background: rgba(255,255,255,0.4);
+    border-radius:14px; padding:14px 16px;
+    text-align:center;
+  }
+  .stat-box .val{font-size:24px;font-weight:700;color:#7a5202;}
+  .stat-box .lbl{font-size:12px;color:#8a6d2f;margin-top:2px;}
+
+  .controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  button{
+    border:1px solid var(--glass-border);
+    background: rgba(255,255,255,0.5);
+    color:#7a5202;
+    padding:9px 18px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    backdrop-filter: blur(6px);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  button:hover{background:rgba(255,255,255,0.75);}
+  button:active{transform:scale(0.96);}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button.primary{
+    background: linear-gradient(135deg, var(--honey), var(--honey-dark));
+    color:#fff;
+    border:none;
+  }
+  .step-log{
+    margin-top:16px; font-size:13px; line-height:1.6; color:#5c3f05;
+    min-height: 44px;
+    background: rgba(255,255,255,0.35);
+    border-radius:12px; padding:12px 14px;
+    border:1px solid var(--glass-border);
+  }
+  .progress-wrap{ margin-top:14px; height:6px; border-radius:3px; background:rgba(255,255,255,0.4); overflow:hidden; }
+  .progress-bar{ height:100%; background: linear-gradient(90deg, var(--honey-light), var(--honey)); width:0%; transition: width 0.35s ease; }
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:8px 10px;text-align:center;border-bottom:1px solid rgba(180,130,20,0.2);}
+  th{color:#7a5202;font-weight:600;background:rgba(255,255,255,0.3);}
+  .bar-wrap{display:flex; align-items:flex-end; gap:22px; height:180px; margin-top:8px; padding:0 10px;}
+  .bar-group{flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;}
+  .bars{display:flex; align-items:flex-end; gap:4px; height:150px;}
+  .bar{ width:16px; border-radius:4px 4px 0 0; transition: height 0.5s ease; }
+  .bar.dc{ background: linear-gradient(180deg, var(--honey), var(--honey-dark)); }
+  .bar.naive{ background: rgba(138,90,2,0.35); }
+  .bar.formula{ background: rgba(180,140,50,0.55); }
+  .bar-group .size-lbl{margin-top:8px;font-size:12px;color:#7a5202;font-weight:600;}
+  .legend{display:flex; gap:18px; margin-top:14px; font-size:12px; color:#7a5202; justify-content:center;}
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Divide &amp; conquer min-max</h1>
+  <p class="sub">Recursive min/max search vs. naive linear scan — step-by-step comparison count</p>
+
+  <div class="glass card">
+    <h2><span class="dot"></span>Recursion tree — demo array [3, 1, 7, 4, 9, 2, 8, 5, 6, 0]</h2>
+
+    <div class="stat-row">
+      <div class="stat-box"><div class="val" id="statComparisons">0</div><div class="lbl">Comparisons so far</div></div>
+      <div class="stat-box"><div class="val" id="statMin">—</div><div class="lbl">Current min</div></div>
+      <div class="stat-box"><div class="val" id="statMax">—</div><div class="lbl">Current max</div></div>
+    </div>
+
+    <svg id="treeSvg" viewBox="0 0 800 430"></svg>
+
+    <div class="controls">
+      <button id="btnReset">Reset</button>
+      <button id="btnPrev">◀ Prev</button>
+      <button id="btnPlay" class="primary">▶ Play</button>
+      <button id="btnNext">Next ▶</button>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="step-log" id="stepLog">Ready. Press Play or Next to begin.</div>
+  </div>
+
+  <div class="glass card">
+    <h2><span class="dot"></span>Performance analysis — D&amp;C vs naive vs formula (3n/2 − 2)</h2>
+    <p style="font-size:13px;color:#8a6d2f;margin-top:-6px;">Runs both algorithms on freshly generated random arrays of each size.</p>
+    <div class="controls" style="margin-top:4px;">
+      <button id="btnRunPerf" class="primary">Run analysis</button>
+    </div>
+    <div id="perfChart"></div>
+    <table id="perfTable" style="margin-top:18px;">
+      <thead><tr><th>Size</th><th>D&amp;C comparisons</th><th>Naive comparisons</th><th>Formula 3n/2−2</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ================= Recursion tree demo =================
+const demoArr = [3, 1, 7, 4, 9, 2, 8, 5, 6, 0];
+
+let nodeIdCounter = 0;
+let leafCounter = 0;
+const LEAF_SPACING = 120;
+const START_X = 80;
+
+function buildTree(low, high, depth){
+  const node = { id: nodeIdCounter++, low, high, depth, children: [] };
+  if (low === high || high === low + 1){
+    node.leaf = true;
+    node.x = START_X + leafCounter * LEAF_SPACING;
+    leafCounter++;
+  } else {
+    const mid = Math.floor((low + high) / 2);
+    node.left = buildTree(low, mid, depth + 1);
+    node.right = buildTree(mid + 1, high, depth + 1);
+    node.x = (node.left.x + node.right.x) / 2;
+  }
+  node.y = depth * 110 + 50;
+  return node;
+}
+
+const tree = buildTree(0, demoArr.length - 1, 0);
+
+function flatten(node, list){
+  list.push(node);
+  if (!node.leaf){ flatten(node.left, list); flatten(node.right, list); }
+  return list;
+}
+const allNodes = flatten(tree, []);
+
+// ---- Simulate the algorithm, recording a snapshot at each step ----
+function simulate(){
+  const steps = [];
+  let comparisonCount = 0;
+  const computed = {};
+
+  function snap(currentId, note){
+    steps.push({ computed: {...computed}, comparisonCount, currentId, note });
+  }
+
+  function rec(node){
+    if (node.leaf){
+      if (node.low === node.high){
+        const v = demoArr[node.low];
+        computed[node.id] = [v, v];
+        snap(node.id, `Base case: single element at index ${node.low} (value ${v}) — min = max = ${v}.`);
+      } else {
+        comparisonCount++;
+        const a = demoArr[node.low], b = demoArr[node.high];
+        const mn = Math.min(a,b), mx = Math.max(a,b);
+        computed[node.id] = [mn, mx];
+        snap(node.id, `Base case: pair (${a}, ${b}) at indices ${node.low}-${node.high} — 1 comparison, min = ${mn}, max = ${mx}.`);
+      }
+      return computed[node.id];
+    }
+    snap(node.id, `Divide range [${node.low}, ${node.high}] into two halves.`);
+    const [lmin, lmax] = rec(node.left);
+    const [rmin, rmax] = rec(node.right);
+    comparisonCount++;
+    const overallMin = lmin < rmin ? lmin : rmin;
+    comparisonCount++;
+    const overallMax = lmax > rmax ? lmax : rmax;
+    computed[node.id] = [overallMin, overallMax];
+    snap(node.id, `Combine [${node.low}, ${node.high}]: 2 comparisons — min = ${overallMin}, max = ${overallMax}.`);
+    return computed[node.id];
+  }
+  rec(tree);
+  return steps;
+}
+const steps = simulate();
+let idx = 0, playing = false, playTimer = null;
+
+// ---- Draw static tree structure ----
+const svg = document.getElementById('treeSvg');
+let svgContent = '';
+function nodeLabel(n){ return n.low === n.high ? `[${n.low}]` : `[${n.low},${n.high}]`; }
+function nodeWidth(n){ return n.low === n.high ? 46 : 60; }
+
+allNodes.forEach(n=>{
+  if (n.left){
+    svgContent += `<line class="tree-edge" x1="${n.x}" y1="${n.y+18}" x2="${n.left.x}" y2="${n.left.y-18}"/>`;
+    svgContent += `<line class="tree-edge" x1="${n.x}" y1="${n.y+18}" x2="${n.right.x}" y2="${n.right.y-18}"/>`;
+  }
+});
+allNodes.forEach(n=>{
+  const w = nodeWidth(n);
+  svgContent += `
+    <g class="tree-node" id="tnode-${n.id}">
+      <rect x="${n.x - w/2}" y="${n.y - 18}" width="${w}" height="36" rx="8"/>
+      <text class="range" x="${n.x}" y="${n.y - 3}">${nodeLabel(n)}</text>
+      <text class="mm" id="tmm-${n.id}" x="${n.x}" y="${n.y + 12}">...</text>
+    </g>`;
+});
+svg.innerHTML = svgContent;
+
+function render(){
+  const step = steps[idx];
+  allNodes.forEach(n=>{
+    const g = document.getElementById(`tnode-${n.id}`);
+    g.classList.remove('current','done');
+    const mm = document.getElementById(`tmm-${n.id}`);
+    const val = step.computed[n.id];
+    if (step.currentId === n.id) g.classList.add('current');
+    else if (val) g.classList.add('done');
+    mm.textContent = val ? `${val[0]}, ${val[1]}` : '...';
+  });
+  document.getElementById('statComparisons').textContent = step.comparisonCount;
+  const rootVal = step.computed[tree.id];
+  document.getElementById('statMin').textContent = rootVal ? rootVal[0] : '—';
+  document.getElementById('statMax').textContent = rootVal ? rootVal[1] : '—';
+  document.getElementById('stepLog').textContent = step.note;
+  document.getElementById('progressBar').style.width = `${Math.round((idx/(steps.length-1))*100)}%`;
+  document.getElementById('btnPrev').disabled = idx===0;
+  document.getElementById('btnNext').disabled = idx===steps.length-1;
+}
+
+document.getElementById('btnNext').addEventListener('click', ()=>{
+  if (idx < steps.length-1){ idx++; render(); }
+  if (idx === steps.length-1) stopPlaying();
+});
+document.getElementById('btnPrev').addEventListener('click', ()=>{ if (idx>0){ idx--; render(); } });
+document.getElementById('btnReset').addEventListener('click', ()=>{ stopPlaying(); idx=0; render(); });
+document.getElementById('btnPlay').addEventListener('click', ()=>{ playing ? stopPlaying() : startPlaying(); });
+
+function startPlaying(){
+  if (idx===steps.length-1) idx=0;
+  playing=true;
+  document.getElementById('btnPlay').textContent='⏸ Pause';
+  playTimer = setInterval(()=>{
+    if (idx<steps.length-1){ idx++; render(); } else stopPlaying();
+  }, 1000);
+}
+function stopPlaying(){
+  playing=false;
+  document.getElementById('btnPlay').textContent='▶ Play';
+  clearInterval(playTimer);
+}
+render();
+
+// ================= Performance analysis =================
+function minMaxDC(arr, low, high, counter){
+  if (low === high) return [arr[low], arr[low]];
+  if (high === low + 1){
+    counter.c++;
+    return arr[low] < arr[high] ? [arr[low], arr[high]] : [arr[high], arr[low]];
+  }
+  const mid = Math.floor((low+high)/2);
+  const [lmin,lmax] = minMaxDC(arr, low, mid, counter);
+  const [rmin,rmax] = minMaxDC(arr, mid+1, high, counter);
+  counter.c++;
+  const mn = lmin < rmin ? lmin : rmin;
+  counter.c++;
+  const mx = lmax > rmax ? lmax : rmax;
+  return [mn, mx];
+}
+function minMaxNaive(arr){
+  let mn = arr[0], mx = arr[0], comps = 0;
+  for (let i=1;i<arr.length;i++){
+    comps++; if (arr[i] < mn) mn = arr[i];
+    comps++; if (arr[i] > mx) mx = arr[i];
+  }
+  return comps;
+}
+
+document.getElementById('btnRunPerf').addEventListener('click', ()=>{
+  const sizes = [10, 100, 1000, 10000];
+  const tbody = document.querySelector('#perfTable tbody');
+  tbody.innerHTML = '';
+  const results = [];
+  sizes.forEach(size=>{
+    const arr = Array.from({length:size}, ()=>Math.floor(Math.random()*10000)+1);
+    const counter = { c: 0 };
+    minMaxDC(arr, 0, arr.length-1, counter);
+    const naive = minMaxNaive(arr);
+    const formula = Math.floor(3*size/2) - 2;
+    results.push({size, dc: counter.c, naive, formula});
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${size}</td><td>${counter.c}</td><td>${naive}</td><td>${formula}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // bar chart (log scale for readability across 10..10000)
+  const chart = document.getElementById('perfChart');
+  const maxVal = Math.max(...results.map(r=>Math.log10(r.naive+1)));
+  let html = '<div class="bar-wrap">';
+  results.forEach(r=>{
+    const hDc = (Math.log10(r.dc+1)/maxVal)*150;
+    const hNaive = (Math.log10(r.naive+1)/maxVal)*150;
+    const hFormula = (Math.log10(r.formula+1)/maxVal)*150;
+    html += `
+      <div class="bar-group">
+        <div class="bars">
+          <div class="bar dc" style="height:${hDc}px" title="D&C: ${r.dc}"></div>
+          <div class="bar naive" style="height:${hNaive}px" title="Naive: ${r.naive}"></div>
+          <div class="bar formula" style="height:${hFormula}px" title="Formula: ${r.formula}"></div>
+        </div>
+        <div class="size-lbl">n=${r.size}</div>
+      </div>`;
+  });
+  html += '</div><div class="legend"><span><span class="swatch" style="background:var(--honey)"></span>D&C</span><span><span class="swatch" style="background:rgba(138,90,2,0.35)"></span>Naive</span><span><span class="swatch" style="background:rgba(180,140,50,0.55)"></span>Formula</span></div>';
+  chart.innerHTML = html;
+});
+</script>
+</body>
+</html>
