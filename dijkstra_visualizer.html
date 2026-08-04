@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dijkstra's Algorithm — Visualizer</title>
+<style>
+  :root{
+    --honey: #E3A008;
+    --honey-dark: #B9770E;
+    --honey-light: #FFE7A6;
+    --glass-bg: rgba(255,255,255,0.35);
+    --glass-border: rgba(255,255,255,0.6);
+    --text-dark: #4a3a10;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #fffdf5 0%, #ffedc2 45%, #ffd782 100%);
+    color: var(--text-dark);
+    padding: 32px 16px 64px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  h1{
+    text-align:center;
+    font-weight:600;
+    font-size:28px;
+    margin-bottom:6px;
+    color:#8a5a05;
+    text-shadow:0 1px 0 rgba(255,255,255,0.6);
+  }
+  p.sub{text-align:center;color:#8a6d2f;margin-top:0;margin-bottom:28px;font-size:14px;}
+
+  .glass{
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    box-shadow: 0 8px 32px rgba(180,130,20,0.18), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  .panel-grid{
+    display:grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 860px){ .panel-grid{grid-template-columns:1fr;} }
+
+  .card{ padding: 20px; }
+  .card h2{
+    margin:0 0 14px;
+    font-size:16px;
+    font-weight:600;
+    color:#7a5202;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--honey);}
+
+  svg{width:100%;height:auto;display:block;}
+
+  .node-circle{
+    fill: rgba(255,255,255,0.55);
+    stroke: var(--honey-dark);
+    stroke-width: 2;
+    transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
+  }
+  .node-circle.current{
+    fill: var(--honey);
+    stroke: #8a5202;
+    filter: drop-shadow(0 0 10px rgba(227,160,8,0.8));
+  }
+  .node-circle.visited{
+    fill: var(--honey-light);
+    stroke: var(--honey-dark);
+  }
+  .node-circle.source{
+    stroke-width: 3;
+  }
+  .node-label{
+    font-size:16px; font-weight:600; fill:#5c3f05;
+    text-anchor:middle; dominant-baseline:central;
+    pointer-events:none;
+  }
+  .node-dist{
+    font-size:11px; fill:#8a6d2f; text-anchor:middle;
+    pointer-events:none;
+  }
+  .edge-line{
+    stroke: rgba(138,90,2,0.45);
+    stroke-width: 2;
+    transition: stroke 0.35s ease, stroke-width 0.35s ease;
+    fill:none;
+  }
+  .edge-line.relaxed{
+    stroke: var(--honey);
+    stroke-width: 4;
+  }
+  .edge-line.tree{
+    stroke: var(--honey-dark);
+    stroke-width: 3;
+  }
+  .edge-weight{
+    font-size:12px; fill:#7a5202; text-anchor:middle; font-weight:600;
+    paint-order: stroke;
+    stroke: rgba(255,255,255,0.85);
+    stroke-width: 4;
+    stroke-linejoin: round;
+  }
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:8px 10px;text-align:center;border-bottom:1px solid rgba(180,130,20,0.2);}
+  th{color:#7a5202;font-weight:600;background:rgba(255,255,255,0.3);}
+  tr.row-current td{background:rgba(227,160,8,0.22);font-weight:600;}
+  tr.row-visited td{color:#8a6d2f;}
+
+  .controls{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    margin-top:18px;
+  }
+  button{
+    border:1px solid var(--glass-border);
+    background: rgba(255,255,255,0.5);
+    color:#7a5202;
+    padding:9px 18px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    backdrop-filter: blur(6px);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  button:hover{background:rgba(255,255,255,0.75);}
+  button:active{transform:scale(0.96);}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button.primary{
+    background: linear-gradient(135deg, var(--honey), var(--honey-dark));
+    color:#fff;
+    border:none;
+  }
+  .step-log{
+    margin-top:16px;
+    font-size:13px;
+    line-height:1.6;
+    color:#5c3f05;
+    min-height: 44px;
+    background: rgba(255,255,255,0.35);
+    border-radius:12px;
+    padding:12px 14px;
+    border:1px solid var(--glass-border);
+  }
+  .progress-wrap{
+    margin-top:14px;
+    height:6px;
+    border-radius:3px;
+    background:rgba(255,255,255,0.4);
+    overflow:hidden;
+  }
+  .progress-bar{
+    height:100%;
+    background: linear-gradient(90deg, var(--honey-light), var(--honey));
+    width:0%;
+    transition: width 0.35s ease;
+  }
+  .path-box{
+    margin-top:16px;
+    font-size:13px;
+  }
+  .path-row{
+    display:flex; justify-content:space-between; padding:5px 0;
+    border-bottom:1px dashed rgba(180,130,20,0.2);
+  }
+  .path-row b{color:#7a5202;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dijkstra's algorithm</h1>
+  <p class="sub">Min-heap shortest path — step-by-step visualization from vertex 0</p>
+
+  <div class="panel-grid">
+    <div class="glass card">
+      <h2><span class="dot"></span>Graph</h2>
+      <svg id="graphSvg" viewBox="0 0 800 400"></svg>
+      <div class="controls">
+        <button id="btnReset">Reset</button>
+        <button id="btnPrev">◀ Prev</button>
+        <button id="btnPlay" class="primary">▶ Play</button>
+        <button id="btnNext">Next ▶</button>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="step-log" id="stepLog">Ready. Press Play or Next to begin.</div>
+    </div>
+
+    <div class="glass card">
+      <h2><span class="dot"></span>Distances &amp; predecessors</h2>
+      <table id="distTable">
+        <thead><tr><th>Vertex</th><th>Distance</th><th>Predecessor</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="path-box" id="pathBox">
+        <h2 style="margin-top:18px;"><span class="dot"></span>Shortest paths from 0</h2>
+        <div id="pathList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Graph definition (matches the provided adjacency list) ----
+const graph = {
+  0: [[1,4],[2,1]],
+  1: [[3,1]],
+  2: [[1,2],[3,5]],
+  3: [[4,3]],
+  4: [[5,2]],
+  5: []
+};
+const positions = {
+  0: [70,  200],
+  1: [270, 80],
+  2: [270, 320],
+  3: [470, 200],
+  4: [630, 200],
+  5: [760, 200]
+};
+const n = Object.keys(graph).length;
+const source = 0;
+
+// ---- Build ordered edge list for drawing ----
+const edges = [];
+for (const u in graph) for (const [v,w] of graph[u]) edges.push({u:+u, v:+v, w});
+
+// ---- Run Dijkstra, recording a snapshot at each meaningful action ----
+function runDijkstra(){
+  const dist = Array(n).fill(Infinity);
+  const prev = Array(n).fill(null);
+  dist[source]=0;
+  const visited = new Set();
+  const pq = [[0, source]];
+  const steps = [];
+
+  function snapshot(extra){
+    steps.push(Object.assign({
+      dist: dist.slice(),
+      prev: prev.slice(),
+      visited: new Set(visited),
+      current: null,
+      relaxedEdge: null,
+    }, extra));
+  }
+
+  snapshot({ note: "Initialize: distance to source = 0, all others = infinity." });
+
+  while(pq.length){
+    pq.sort((a,b)=>a[0]-b[0]);
+    const [d,u] = pq.shift();
+    if (visited.has(u)) continue;
+    visited.add(u);
+    snapshot({ current: u, note: `Visit vertex ${u} (settled distance = ${d===Infinity?'INF':d}).` });
+
+    for (const [v,w] of graph[u]){
+      if (dist[u] + w < dist[v]){
+        dist[v] = dist[u] + w;
+        prev[v] = u;
+        pq.push([dist[v], v]);
+        snapshot({ current: u, relaxedEdge:[u,v], note: `Relax edge ${u} → ${v} (weight ${w}): new distance ${dist[v]}.` });
+      }
+    }
+  }
+  snapshot({ note: "Done — all reachable vertices settled." });
+  return steps;
+}
+
+const steps = runDijkstra();
+let idx = 0;
+let playing = false;
+let playTimer = null;
+
+// ---- Draw static graph structure once ----
+const svg = document.getElementById('graphSvg');
+svg.innerHTML = `
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9Z" fill="var(--honey-dark)"/>
+    </marker>
+  </defs>
+`;
+
+function nodeRadius(){ return 26; }
+
+function edgeGeometry(u,v){
+  const [x1,y1]=positions[u], [x2,y2]=positions[v];
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+  const r=nodeRadius()+6;
+  const ux=dx/len, uy=dy/len;
+  return {
+    x1: x1+ux*r, y1: y1+uy*r,
+    x2: x2-ux*r, y2: y2-uy*r,
+    mx: (x1+x2)/2, my: (y1+y2)/2 - 8
+  };
+}
+
+edges.forEach((e,i)=>{
+  const g = edgeGeometry(e.u,e.v);
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('class','edge-line');
+  line.setAttribute('id', `edge-${e.u}-${e.v}`);
+  line.setAttribute('x1', g.x1); line.setAttribute('y1', g.y1);
+  line.setAttribute('x2', g.x2); line.setAttribute('y2', g.y2);
+  line.setAttribute('marker-end', 'url(#arrow)');
+  svg.appendChild(line);
+
+  const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+  label.setAttribute('class','edge-weight');
+  label.setAttribute('x', g.mx); label.setAttribute('y', g.my);
+  label.textContent = e.w;
+  svg.appendChild(label);
+});
+
+for (let vId=0; vId<n; vId++){
+  const [x,y] = positions[vId];
+  const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  circle.setAttribute('class', 'node-circle' + (vId===source ? ' source' : ''));
+  circle.setAttribute('id', `node-${vId}`);
+  circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', nodeRadius());
+  svg.appendChild(circle);
+
+  const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+  label.setAttribute('class','node-label');
+  label.setAttribute('x', x); label.setAttribute('y', y);
+  label.textContent = vId;
+  svg.appendChild(label);
+
+  const distLabel = document.createElementNS('http://www.w3.org/2000/svg','text');
+  distLabel.setAttribute('class','node-dist');
+  distLabel.setAttribute('id', `dist-${vId}`);
+  distLabel.setAttribute('x', x); distLabel.setAttribute('y', y+nodeRadius()+16);
+  svg.appendChild(distLabel);
+}
+
+// ---- Render a given step ----
+const tbody = document.querySelector('#distTable tbody');
+const stepLog = document.getElementById('stepLog');
+const progressBar = document.getElementById('progressBar');
+const pathList = document.getElementById('pathList');
+
+function reconstructPath(prev, target){
+  const path=[]; let node=target;
+  while(node!==null){ path.push(node); node=prev[node]; }
+  path.reverse();
+  return path[0]===source ? path : null;
+}
+
+function render(){
+  const step = steps[idx];
+
+  // edges
+  edges.forEach(e=>{
+    const el = document.getElementById(`edge-${e.u}-${e.v}`);
+    el.classList.remove('relaxed','tree');
+    if (step.relaxedEdge && step.relaxedEdge[0]===e.u && step.relaxedEdge[1]===e.v){
+      el.classList.add('relaxed');
+    } else if (step.prev[e.v]===e.u && step.dist[e.v] < Infinity){
+      el.classList.add('tree');
+    }
+  });
+
+  // nodes
+  for (let vId=0; vId<n; vId++){
+    const el = document.getElementById(`node-${vId}`);
+    el.classList.remove('current','visited');
+    if (step.current===vId) el.classList.add('current');
+    else if (step.visited.has(vId)) el.classList.add('visited');
+    document.getElementById(`dist-${vId}`).textContent =
+      step.dist[vId]===Infinity ? '∞' : step.dist[vId];
+  }
+
+  // table
+  tbody.innerHTML='';
+  for (let vId=0; vId<n; vId++){
+    const tr = document.createElement('tr');
+    if (step.current===vId) tr.className='row-current';
+    else if (step.visited.has(vId)) tr.className='row-visited';
+    tr.innerHTML = `<td>${vId}</td><td>${step.dist[vId]===Infinity?'INF':step.dist[vId]}</td><td>${step.prev[vId]===null?'—':step.prev[vId]}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  // paths (only show once finished, i.e. last step)
+  if (idx === steps.length - 1){
+    pathList.innerHTML = '';
+    for (let vId=0; vId<n; vId++){
+      const path = reconstructPath(step.prev, vId);
+      const row = document.createElement('div');
+      row.className='path-row';
+      row.innerHTML = `<span>Vertex <b>${vId}</b></span><span>${path ? path.join(' → ') : 'No path'}</span>`;
+      pathList.appendChild(row);
+    }
+  } else {
+    pathList.innerHTML = '<div class="path-row" style="color:#a08850;">Paths appear once the algorithm finishes.</div>';
+  }
+
+  stepLog.textContent = step.note;
+  progressBar.style.width = `${Math.round((idx/(steps.length-1))*100)}%`;
+
+  document.getElementById('btnPrev').disabled = idx===0;
+  document.getElementById('btnNext').disabled = idx===steps.length-1;
+}
+
+document.getElementById('btnNext').addEventListener('click', ()=>{
+  if (idx < steps.length-1){ idx++; render(); }
+  if (idx === steps.length-1) stopPlaying();
+});
+document.getElementById('btnPrev').addEventListener('click', ()=>{
+  if (idx > 0){ idx--; render(); }
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  stopPlaying(); idx=0; render();
+});
+document.getElementById('btnPlay').addEventListener('click', ()=>{
+  if (playing) stopPlaying(); else startPlaying();
+});
+
+function startPlaying(){
+  if (idx===steps.length-1) idx=0;
+  playing=true;
+  document.getElementById('btnPlay').textContent='⏸ Pause';
+  playTimer = setInterval(()=>{
+    if (idx<steps.length-1){ idx++; render(); }
+    else stopPlaying();
+  }, 1100);
+}
+function stopPlaying(){
+  playing=false;
+  document.getElementById('btnPlay').textContent='▶ Play';
+  clearInterval(playTimer);
+}
+
+render();
+</script>
+</body>
+</html>
