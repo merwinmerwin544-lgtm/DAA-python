@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Chain — Optimal Order Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-base:#ffffff;
+    --bg-warm:#fff8ea;
+    --bg-warm-2:#fff1d4;
+    --honey:#e8a93c;
+    --honey-deep:#c9822a;
+    --honey-glow:#ffd98a;
+    --honey-pale:#fff0cf;
+    --ink:#2c2416;
+    --ink-soft:#6b5f4a;
+    --glass:rgba(255,255,255,0.55);
+    --glass-strong:rgba(255,255,255,0.72);
+    --glass-border:rgba(255,255,255,0.85);
+    --shadow-soft:0 8px 32px rgba(178,131,42,0.14);
+    --shadow-lift:0 16px 48px rgba(178,131,42,0.22);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+
+  body{
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 15% 8%, var(--honey-glow) 0%, transparent 40%),
+      radial-gradient(circle at 90% 85%, var(--bg-warm-2) 0%, transparent 45%),
+      var(--bg-base);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* honeycomb watermark */
+  .hive{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.35;
+    background-image:
+      radial-gradient(circle, transparent 20%, var(--bg-base) 20%, var(--bg-base) 80%, transparent 80%, transparent),
+      radial-gradient(circle, transparent 20%, var(--bg-base) 20%, var(--bg-base) 80%, transparent 80%, transparent) 30px 30px,
+      linear-gradient(var(--honey-pale) 2px, transparent 2px) 0 -1px,
+      linear-gradient(90deg, var(--honey-pale) 2px, var(--bg-base) 2px) -1px 0;
+    background-size:60px 60px, 60px 60px, 30px 30px, 30px 30px;
+    mask-image:linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 55%);
+  }
+
+  .wrap{
+    position:relative;
+    z-index:1;
+    max-width:1080px;
+    margin:0 auto;
+    padding:64px 28px 100px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    text-align:center;
+    margin-bottom:56px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12.5px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--honey-deep);
+    font-weight:600;
+    margin-bottom:18px;
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before,.eyebrow::after{
+    content:"";
+    width:22px;height:1px;
+    background:var(--honey-deep);
+    opacity:0.5;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(2.4rem,5.4vw,4.1rem);
+    line-height:1.05;
+    margin:0 0 18px;
+    letter-spacing:-0.01em;
+  }
+  h1 em{
+    font-style:italic;
+    font-weight:500;
+    background:linear-gradient(100deg,var(--honey-deep),var(--honey));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .sub{
+    font-size:16.5px;
+    color:var(--ink-soft);
+    max-width:560px;
+    margin:0 auto;
+    line-height:1.6;
+  }
+
+  /* ---------- Glass panel base ---------- */
+  .glass{
+    background:var(--glass);
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid var(--glass-border);
+    border-radius:22px;
+    box-shadow:var(--shadow-soft);
+  }
+
+  /* ---------- Input panel ---------- */
+  .input-panel{
+    padding:32px 32px 30px;
+    margin-bottom:36px;
+  }
+  .input-panel label{
+    display:block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+    font-weight:600;
+  }
+  .field-row{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  input[type="text"]{
+    flex:1 1 320px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:15.5px;
+    padding:14px 18px;
+    border-radius:14px;
+    border:1.5px solid rgba(201,130,42,0.25);
+    background:rgba(255,255,255,0.65);
+    color:var(--ink);
+    outline:none;
+    transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  input[type="text"]:focus{
+    border-color:var(--honey);
+    box-shadow:0 0 0 4px rgba(232,169,60,0.18);
+  }
+  input[type="text"]::placeholder{color:#b8a98a;}
+
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    padding:14px 26px;
+    border-radius:14px;
+    border:none;
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    white-space:nowrap;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--honey),var(--honey-deep));
+    color:#3a2408;
+    box-shadow:0 10px 26px rgba(201,130,42,0.35);
+  }
+  .btn-primary:hover{transform:translateY(-2px); filter:brightness(1.05);}
+  .btn-primary:active{transform:translateY(0);}
+  .btn-ghost{
+    background:rgba(255,255,255,0.5);
+    color:var(--honey-deep);
+    border:1.5px solid rgba(201,130,42,0.3);
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,0.8);}
+
+  .hint{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.5;
+  }
+  .hint code{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--honey-pale);
+    padding:1px 6px;
+    border-radius:6px;
+    color:var(--honey-deep);
+  }
+  .error-msg{
+    margin-top:14px;
+    font-size:13.5px;
+    color:#a8461e;
+    background:rgba(255,229,209,0.7);
+    border:1px solid rgba(200,100,40,0.25);
+    padding:10px 14px;
+    border-radius:12px;
+    display:none;
+  }
+
+  /* ---------- Results ---------- */
+  #results{display:none;}
+
+  .section-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:22px;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .section-caption{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+
+  /* Chain visualization */
+  .chain-panel{padding:30px 28px; margin-bottom:32px;}
+  .chain-row{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:0;
+    margin-top:8px;
+  }
+  .matrix-cell{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-width:78px;
+    padding:14px 10px;
+    background:linear-gradient(160deg,rgba(255,255,255,0.85),rgba(255,241,212,0.65));
+    border:1.5px solid rgba(232,169,60,0.35);
+    border-radius:16px;
+    box-shadow:0 6px 18px rgba(201,130,42,0.12);
+  }
+  .matrix-cell .name{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:17px;
+    color:var(--honey-deep);
+  }
+  .matrix-cell .dims{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .chain-x{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--honey);
+    font-size:16px;
+    padding:0 10px;
+    font-weight:600;
+  }
+
+  /* Stat row */
+  .stat-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:18px;
+    margin-bottom:32px;
+  }
+  .stat-card{
+    padding:24px 26px;
+  }
+  .stat-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    font-weight:600;
+  }
+  .stat-value{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:28px;
+    color:var(--ink);
+  }
+  .stat-value.accent{
+    background:linear-gradient(100deg,var(--honey-deep),var(--honey));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* Parenthesization visual */
+  .paren-panel{padding:30px 28px; margin-bottom:32px;}
+  .paren-visual{
+    margin-top:16px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:16px;
+    line-height:2.1;
+    word-break:break-word;
+  }
+  .grp{
+    display:inline-flex;
+    align-items:center;
+    padding:4px 10px;
+    margin:2px;
+    border-radius:10px;
+    border:1px solid rgba(201,130,42,0.28);
+  }
+  .grp .leaf{
+    font-weight:600;
+    color:var(--honey-deep);
+  }
+  .grp .op{
+    margin:0 6px;
+    color:var(--ink-soft);
+    font-weight:500;
+  }
+  .paren-text{
+    margin-top:18px;
+    font-size:14px;
+    color:var(--ink-soft);
+    font-family:'JetBrains Mono',monospace;
+    background:rgba(255,255,255,0.5);
+    border-radius:12px;
+    padding:14px 16px;
+    border:1px solid rgba(232,169,60,0.2);
+  }
+  .paren-text b{color:var(--ink);}
+
+  /* DP Table */
+  .table-panel{padding:30px 28px;}
+  .table-scroll{
+    overflow-x:auto;
+    margin-top:16px;
+    border-radius:16px;
+  }
+  table.dp{
+    border-collapse:separate;
+    border-spacing:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+  }
+  table.dp th{
+    font-weight:600;
+    color:var(--honey-deep);
+    padding:8px;
+    font-size:12.5px;
+  }
+  table.dp td{
+    text-align:center;
+    padding:12px 14px;
+    border-radius:10px;
+    min-width:56px;
+    color:var(--ink);
+    border:1px solid rgba(201,130,42,0.18);
+    font-weight:500;
+  }
+  td.diag{
+    color:#c9b389;
+    background:rgba(255,255,255,0.35);
+    border-style:dashed;
+  }
+  td.empty{
+    background:none;
+    border:none;
+  }
+  .legend{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:18px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .legend-swatch{
+    display:inline-block;
+    width:120px;
+    height:10px;
+    border-radius:6px;
+    background:linear-gradient(90deg,var(--honey-pale),var(--honey-deep));
+  }
+
+  footer{
+    text-align:center;
+    margin-top:60px;
+    font-size:12.5px;
+    color:#b8a98a;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  @media (max-width:560px){
+    .wrap{padding:44px 16px 70px;}
+    .input-panel,.chain-panel,.paren-panel,.table-panel{padding:22px 18px;}
+  }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .btn-primary:hover{transform:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hive"></div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">Dynamic Programming</div>
+    <h1>Matrix Chain<br><em>Multiplication</em></h1>
+    <p class="sub">Enter the dimensions of your matrix chain and find the parenthesization that costs the fewest scalar multiplications — worked out link by link.</p>
+  </div>
+
+  <div class="glass input-panel">
+    <label for="dimsInput">Chain dimensions (matrix i has size dims[i-1] × dims[i])</label>
+    <div class="field-row">
+      <input type="text" id="dimsInput" placeholder="e.g. 30, 35, 15, 5, 10, 20, 25">
+      <button class="btn btn-primary" id="computeBtn">Compute optimal order</button>
+      <button class="btn btn-ghost" id="exampleBtn">Try an example</button>
+    </div>
+    <p class="hint">Give <code>n + 1</code> numbers for a chain of <code>n</code> matrices — separated by commas or spaces. Each consecutive pair defines one matrix's shape.</p>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div id="results">
+
+    <div class="glass chain-panel">
+      <div class="section-title">The chain</div>
+      <p class="section-caption">Each panel is one matrix in the sequence, sized by its input dimensions.</p>
+      <div class="chain-row" id="chainRow"></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="glass stat-card">
+        <div class="stat-label">Matrices in chain</div>
+        <div class="stat-value" id="statCount">—</div>
+      </div>
+      <div class="glass stat-card">
+        <div class="stat-label">Minimum scalar multiplications</div>
+        <div class="stat-value accent" id="statMin">—</div>
+      </div>
+      <div class="glass stat-card">
+        <div class="stat-label">Naive left-to-right cost</div>
+        <div class="stat-value" id="statNaive">—</div>
+      </div>
+    </div>
+
+    <div class="glass paren-panel">
+      <div class="section-title">Optimal parenthesization</div>
+      <p class="section-caption">Grouped exactly as the DP table recommends — each bracket is a glass panel, nested by depth.</p>
+      <div class="paren-visual" id="parenVisual"></div>
+      <div class="paren-text" id="parenText"></div>
+    </div>
+
+    <div class="glass table-panel">
+      <div class="section-title">DP cost table — m[i][j]</div>
+      <p class="section-caption">Minimum multiplication cost to compute the product of matrices i through j. Darker honey means a costlier subchain.</p>
+      <div class="table-scroll">
+        <table class="dp" id="dpTable"></table>
+      </div>
+      <div class="legend">
+        <span>Low cost</span>
+        <span class="legend-swatch"></span>
+        <span>High cost</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>matrix chain order · O(n³) time · O(n²) space</footer>
+
+</div>
+
+<script>
+function matrixChainOrder(dims){
+  const n = dims.length - 1;
+  const m = Array.from({length:n+1},()=>Array(n+1).fill(0));
+  const s = Array.from({length:n+1},()=>Array(n+1).fill(0));
+
+  for(let l=2;l<=n;l++){
+    for(let i=1;i<=n-l+1;i++){
+      const j = i+l-1;
+      m[i][j] = Infinity;
+      for(let k=i;k<j;k++){
+        const cost = m[i][k] + m[k+1][j] + dims[i-1]*dims[k]*dims[j];
+        if(cost < m[i][j]){
+          m[i][j] = cost;
+          s[i][j] = k;
+        }
+      }
+    }
+  }
+  return {m,s,n};
+}
+
+function buildParenTree(s,i,j){
+  if(i===j) return {leaf:true, index:i};
+  const k = s[i][j];
+  return {leaf:false, left:buildParenTree(s,i,k), right:buildParenTree(s,k+1,j)};
+}
+
+function parenTreeToString(node){
+  if(node.leaf) return 'A'+node.index;
+  return '(' + parenTreeToString(node.left) + ' × ' + parenTreeToString(node.right) + ')';
+}
+
+function parenTreeToHTML(node, depth){
+  if(node.leaf){
+    return `<span class="leaf">A${node.index}</span>`;
+  }
+  const shade = Math.min(depth*10, 40);
+  const bg = `rgba(255, ${241-shade}, ${212-shade}, 0.6)`;
+  return `<span class="grp" style="background:${bg}">${parenTreeToHTML(node.left, depth+1)}<span class="op">×</span>${parenTreeToHTML(node.right, depth+1)}</span>`;
+}
+
+function naiveLeftToRightCost(dims){
+  // cost of computing (((A1*A2)*A3)*...*An) left to right
+  let n = dims.length - 1;
+  if(n < 2) return 0;
+  let p = dims[0], q = dims[1];
+  let cost = 0;
+  for(let idx=2; idx<=n; idx++){
+    const r = dims[idx];
+    cost += p*q*r;
+    q = r; // p stays as original row count of the running product
+  }
+  return cost;
+}
+
+function parseDims(raw){
+  const parts = raw.split(/[\s,]+/).filter(x=>x.length>0);
+  const nums = parts.map(Number);
+  if(nums.some(x=>Number.isNaN(x))) throw new Error('Please enter only numbers, separated by commas or spaces.');
+  if(nums.length < 3) throw new Error('Enter at least 3 numbers (for at least 2 matrices).');
+  if(nums.some(x=>x<=0 || !Number.isInteger(x))) throw new Error('All dimensions must be positive whole numbers.');
+  return nums;
+}
+
+function showError(msg){
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+}
+function clearError(){
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+function render(dims){
+  const {m,s,n} = matrixChainOrder(dims);
+
+  // chain visualization
+  const chainRow = document.getElementById('chainRow');
+  chainRow.innerHTML = '';
+  for(let i=1;i<=n;i++){
+    const cell = document.createElement('div');
+    cell.className = 'matrix-cell';
+    cell.innerHTML = `<div class="name">A${i}</div><div class="dims">${dims[i-1]} × ${dims[i]}</div>`;
+    chainRow.appendChild(cell);
+    if(i<n){
+      const x = document.createElement('div');
+      x.className = 'chain-x';
+      x.textContent = '×';
+      chainRow.appendChild(x);
+    }
+  }
+
+  // stats
+  document.getElementById('statCount').textContent = n;
+  document.getElementById('statMin').textContent = m[1][n].toLocaleString();
+  document.getElementById('statNaive').textContent = naiveLeftToRightCost(dims).toLocaleString();
+
+  // parenthesization
+  const tree = n===1 ? {leaf:true,index:1} : buildParenTree(s,1,n);
+  document.getElementById('parenVisual').innerHTML = parenTreeToHTML(tree,0);
+  const text = parenTreeToString(tree);
+  document.getElementById('parenText').innerHTML = `<b>Order:</b> ${text}`;
+
+  // DP table
+  const maxCost = m[1][n] || 1;
+  const table = document.getElementById('dpTable');
+  let html = '<tr><th></th>';
+  for(let j=1;j<=n;j++) html += `<th>A${j}</th>`;
+  html += '</tr>';
+  for(let i=1;i<=n;i++){
+    html += `<tr><th>A${i}</th>`;
+    for(let j=1;j<=n;j++){
+      if(j<i){
+        html += '<td class="empty"></td>';
+      } else if(i===j){
+        html += '<td class="diag">0</td>';
+      } else {
+        const val = m[i][j];
+        const ratio = Math.min(val / maxCost, 1);
+        const r = Math.round(255 - ratio*46);
+        const g = Math.round(241 - ratio*111);
+        const b = Math.round(212 - ratio*170);
+        html += `<td style="background:rgba(${r},${g},${b},0.75)">${val.toLocaleString()}</td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  table.innerHTML = html;
+
+  document.getElementById('results').style.display = 'block';
+}
+
+document.getElementById('computeBtn').addEventListener('click', ()=>{
+  clearError();
+  try{
+    const dims = parseDims(document.getElementById('dimsInput').value);
+    render(dims);
+  }catch(e){
+    showError(e.message);
+  }
+});
+
+document.getElementById('exampleBtn').addEventListener('click', ()=>{
+  document.getElementById('dimsInput').value = '30, 35, 15, 5, 10, 20, 25';
+  clearError();
+  render([30,35,15,5,10,20,25]);
+});
+
+document.getElementById('dimsInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('computeBtn').click();
+});
+</script>
+
+</body>
+</html>
